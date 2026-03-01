@@ -32,7 +32,12 @@ class TaskService:
             resource_cpu=data.resource_cpu,
             resource_memory=data.resource_memory,
             max_retries=data.max_retries,
-            duration_seconds=data.duration_seconds,
+            image=data.image,
+            command=data.command,
+            args=data.args,
+            env_vars=data.env_vars,
+            working_dir=data.working_dir,
+            timeout_seconds=data.timeout_seconds,
         )
         self._session.add(task)
         await self._session.flush()
@@ -46,6 +51,7 @@ class TaskService:
             task_id=str(task.id),
             name=task.name,
             priority=task.priority,
+            image=task.image,
         )
 
         await event_bus.publish("task_created", {
@@ -55,6 +61,7 @@ class TaskService:
             "state": task.state,
             "resource_cpu": task.resource_cpu,
             "resource_memory": task.resource_memory,
+            "image": task.image,
         })
 
         return TaskResponse.model_validate(task)

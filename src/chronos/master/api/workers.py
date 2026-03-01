@@ -51,10 +51,17 @@ class TaskStateUpdate(BaseModel):
 
 class TaskCompleteRequest(BaseModel):
     result: dict | None = None
+    exit_code: int | None = None
+    stdout: str | None = None
+    stderr: str | None = None
+    container_id: str | None = None
 
 
 class TaskFailRequest(BaseModel):
     error: str
+    exit_code: int | None = None
+    stderr: str | None = None
+    container_id: str | None = None
 
 
 internal_tasks_router = APIRouter(prefix="/internal/tasks", tags=["internal"])
@@ -84,6 +91,7 @@ async def update_task_state(
                     "from_state": old_state,
                     "to_state": data.state,
                     "worker_id": data.worker_id,
+                    "image": task.image,
                 })
 
 
@@ -96,8 +104,6 @@ async def complete_task(
     from chronos.db.engine import get_session_factory
     from chronos.models.enums import TaskState
     from chronos.models.task import Task
-    from chronos.redis_client.connection import get_redis
-    from chronos.redis_client.priority_queue import PriorityQueue
     from chronos.state_machine.transitions import transition_task
 
     factory = get_session_factory()
@@ -107,6 +113,17 @@ async def complete_task(
             if task:
                 old_state = task.state
                 transition_task(task, TaskState.COMPLETED, result=data.result)
+
+                # Store Docker container execution results
+                if data.exit_code is not None:
+                    task.exit_code = data.exit_code
+                if data.stdout is not None:
+                    task.stdout = data.stdout
+                if data.stderr is not None:
+                    task.stderr = data.stderr
+                if data.container_id is not None:
+                    task.container_id = data.container_id
+
                 # Free worker resources
                 if task.assigned_worker_id:
                     from chronos.models.worker import Worker
@@ -114,12 +131,23 @@ async def complete_task(
                     if worker:
                         worker.cpu_available += task.resource_cpu
                         worker.memory_available += task.resource_memory
+
                 await event_bus.publish("task_state_changed", {
                     "task_id": str(task_id),
                     "name": task.name,
                     "from_state": old_state,
                     "to_state": TaskState.COMPLETED.value,
                     "worker_id": str(task.assigned_worker_id) if task.assigned_worker_id else None,
+                    "exit_code": data.exit_code,
+                    "image": task.image,
+                })
+
+                await event_bus.publish("container_exited", {
+                    "task_id": str(task_id),
+                    "name": task.name,
+                    "image": task.image,
+                    "exit_code": data.exit_code or 0,
+                    "container_id": data.container_id or "",
                 })
 
 
@@ -143,6 +171,15 @@ async def fail_task(
             if task:
                 old_state = task.state
                 transition_task(task, TaskState.FAILED, error=data.error)
+
+                # Store Docker container execution results
+                if data.exit_code is not None:
+                    task.exit_code = data.exit_code
+                if data.stderr is not None:
+                    task.stderr = data.stderr
+                if data.container_id is not None:
+                    task.container_id = data.container_id
+
                 # Free worker resources
                 if task.assigned_worker_id:
                     from chronos.models.worker import Worker
@@ -162,11 +199,24 @@ async def fail_task(
                     await queue.enqueue(str(task.id), task.priority)
                     final_state = TaskState.PENDING.value
 
-                await event_bus.publish("task_state_changed", {
+                # Detect OOM and timeout for event publishing
+                is_oom = "OOM" in data.error
+                is_timeout = "Timeout" in data.error
+
+                event_type = "task_state_changed"
+                if is_oom:
+                    event_type = "oom_killed"
+                elif is_timeout:
+                    event_type = "timeout_killed"
+
+                await event_bus.publish(event_type, {
                     "task_id": str(task_id),
                     "name": task.name,
                     "from_state": old_state,
                     "to_state": final_state,
                     "worker_id": str(task.assigned_worker_id) if task.assigned_worker_id else None,
                     "retry_count": task.retry_count,
+                    "error": data.error[:500],
+                    "exit_code": data.exit_code,
+                    "image": task.image,
                 })

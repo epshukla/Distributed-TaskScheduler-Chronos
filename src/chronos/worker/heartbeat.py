@@ -10,7 +10,11 @@ logger = structlog.get_logger(__name__)
 
 
 class HeartbeatSender:
-    """Sends periodic heartbeats to Redis with resource availability."""
+    """Sends periodic heartbeats to Redis with resource availability.
+
+    Includes both scheduler-tracked (reserved) and actual (psutil-measured)
+    resource data so the dashboard can show real vs allocated usage.
+    """
 
     def __init__(
         self,
@@ -30,10 +34,22 @@ class HeartbeatSender:
         logger.info("heartbeat_sender_started", worker_id=self._worker_id)
         while True:
             try:
+                full_report = self._reporter.to_dict()
                 payload = {
-                    "cpu_available": self._reporter.cpu_available,
-                    "memory_available": self._reporter.memory_available,
+                    # Scheduler-tracked values (used by master for scheduling decisions)
+                    "cpu_available": full_report["cpu_available"],
+                    "memory_available": full_report["memory_available"],
                     "timestamp": time.time(),
+                    # Real metrics for dashboard display
+                    "actual_cpu_used": full_report.get("actual_cpu_used", 0),
+                    "actual_cpu_total": full_report.get("actual_cpu_total", 0),
+                    "actual_memory_used": full_report.get("actual_memory_used", 0),
+                    "actual_memory_total": full_report.get("actual_memory_total", 0),
+                    "cpu_percent": full_report.get("cpu_percent", 0),
+                    "memory_percent": full_report.get("memory_percent", 0),
+                    "container_count": full_report.get("container_count", 0),
+                    "container_cpu_usage": full_report.get("container_cpu_usage", 0),
+                    "container_memory_usage": full_report.get("container_memory_usage", 0),
                 }
                 await self._store.send_heartbeat(self._worker_id, payload, self._ttl)
             except asyncio.CancelledError:

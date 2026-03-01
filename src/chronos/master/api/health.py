@@ -8,6 +8,7 @@ from chronos.models.enums import TaskState
 from chronos.models.task import Task
 from chronos.redis_client.priority_queue import PriorityQueue
 from chronos.schemas.common import HealthResponse, ReadinessResponse
+from chronos.task_templates import TEMPLATES
 
 router = APIRouter(tags=["health"])
 
@@ -124,3 +125,9 @@ async def cluster_stats(request: Request) -> dict:
         pass
 
     return result
+
+
+@router.get("/api/v1/task-templates")
+async def get_task_templates() -> dict:
+    """Return pre-built task templates for the dashboard demo experience."""
+    return {"templates": TEMPLATES}

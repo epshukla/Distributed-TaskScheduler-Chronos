@@ -17,7 +17,6 @@ export interface Task {
   resource_memory: number;
   max_retries: number;
   retry_count: number;
-  duration_seconds: number;
   assigned_worker_id: string | null;
   result: Record<string, unknown> | null;
   error: string | null;
@@ -26,6 +25,18 @@ export interface Task {
   scheduled_at: string | null;
   started_at: string | null;
   completed_at: string | null;
+
+  // Docker container execution
+  image: string;
+  command: string[] | null;
+  args: string[] | null;
+  env_vars: Record<string, string> | null;
+  working_dir: string | null;
+  timeout_seconds: number;
+  exit_code: number | null;
+  stdout: string | null;
+  stderr: string | null;
+  container_id: string | null;
 }
 
 export interface TaskCreate {
@@ -35,7 +46,14 @@ export interface TaskCreate {
   resource_cpu?: number;
   resource_memory?: number;
   max_retries?: number;
-  duration_seconds?: number;
+
+  // Docker container execution
+  image: string;
+  command?: string[];
+  args?: string[];
+  env_vars?: Record<string, string>;
+  working_dir?: string;
+  timeout_seconds?: number;
 }
 
 export interface TaskListResponse {
@@ -44,4 +62,14 @@ export interface TaskListResponse {
   page: number;
   page_size: number;
   pages: number;
+}
+
+export interface TaskTemplate {
+  name: string;
+  image: string;
+  command?: string[];
+  resource_cpu: number;
+  resource_memory: number;
+  timeout_seconds?: number;
+  description: string;
 }

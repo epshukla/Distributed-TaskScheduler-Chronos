@@ -8,12 +8,17 @@ import {
   Server,
   Heart,
   Skull,
+  Box,
+  LogOut,
+  Download,
+  AlertTriangle,
+  Timer,
 } from "lucide-react";
 import { formatRelativeTime } from "@/utils/format";
 import type { WebSocketEvent, EventType } from "@/types/events";
 
 const eventConfig: Record<
-  EventType,
+  string,
   { icon: typeof Plus; color: string; label: string }
 > = {
   task_created: { icon: Plus, color: "text-blue-400", label: "Task Created" },
@@ -38,6 +43,36 @@ const eventConfig: Record<
     label: "Heartbeat",
   },
   worker_dead: { icon: Skull, color: "text-red-400", label: "Worker Dead" },
+  container_started: {
+    icon: Box,
+    color: "text-cyan-400",
+    label: "Container Started",
+  },
+  container_exited: {
+    icon: LogOut,
+    color: "text-gray-400",
+    label: "Container Exited",
+  },
+  image_pull_started: {
+    icon: Download,
+    color: "text-yellow-400",
+    label: "Image Pull",
+  },
+  image_pull_completed: {
+    icon: Download,
+    color: "text-emerald-400",
+    label: "Image Ready",
+  },
+  oom_killed: {
+    icon: AlertTriangle,
+    color: "text-yellow-500",
+    label: "OOM Killed",
+  },
+  timeout_killed: {
+    icon: Timer,
+    color: "text-red-500",
+    label: "Timeout Killed",
+  },
 };
 
 interface EventCardProps {
@@ -81,11 +116,26 @@ export function EventCard({ event }: EventCardProps) {
 function getEventDetail(event: WebSocketEvent): string {
   const d = event.data;
   if ("name" in d && "task_id" in d) {
-    if (event.type === "task_state_changed" && "to_state" in d) {
-      return `${d.name}: ${("from_state" in d ? d.from_state : "?")} → ${d.to_state}`;
+    if (
+      (event.type === "task_state_changed" ||
+        event.type === "oom_killed" ||
+        event.type === "timeout_killed") &&
+      "to_state" in d
+    ) {
+      const detail = `${d.name}: ${("from_state" in d ? d.from_state : "?")} → ${d.to_state}`;
+      if ("image" in d && d.image) return `${detail} [${d.image}]`;
+      return detail;
     }
     if (event.type === "task_scheduled" && "worker_hostname" in d) {
       return `${d.name} → ${d.worker_hostname}`;
+    }
+    if (event.type === "container_exited" && "exit_code" in d) {
+      const exitStr = `exit ${d.exit_code}`;
+      if ("image" in d) return `${d.name} (${d.image}) — ${exitStr}`;
+      return `${d.name} — ${exitStr}`;
+    }
+    if ("image" in d && d.image) {
+      return `${d.name} [${d.image}]`;
     }
     return `${d.name} (P${"priority" in d ? d.priority : "?"})`;
   }

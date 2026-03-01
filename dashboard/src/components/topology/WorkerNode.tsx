@@ -1,6 +1,6 @@
 import { memo } from "react";
 import { Handle, Position, type NodeProps } from "@xyflow/react";
-import { Server } from "lucide-react";
+import { Server, Box } from "lucide-react";
 import { CircularGauge } from "@/components/common/CircularGauge";
 
 interface WorkerNodeData {
@@ -48,9 +48,12 @@ export const WorkerNode = memo(function WorkerNode({
           label="MEM"
         />
       </div>
-      <p className="mt-1 text-center text-[10px] text-gray-500">
-        {data.taskCount} task{data.taskCount !== 1 ? "s" : ""}
-      </p>
+      <div className="mt-1 flex items-center justify-center gap-1">
+        <Box size={9} className="text-gray-500" />
+        <span className="text-[10px] text-gray-500">
+          {data.taskCount} container{data.taskCount !== 1 ? "s" : ""}
+        </span>
+      </div>
     </div>
   );
 });

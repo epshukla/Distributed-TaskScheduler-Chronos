@@ -1,5 +1,5 @@
 import { apiFetch } from "./client";
-import type { Task, TaskCreate, TaskListResponse } from "@/types/task";
+import type { Task, TaskCreate, TaskListResponse, TaskTemplate } from "@/types/task";
 
 export async function fetchTasks(params?: {
   state?: string;
@@ -33,4 +33,11 @@ export async function cancelTask(taskId: string): Promise<Task> {
   return apiFetch<Task>(`/api/v1/tasks/${taskId}`, {
     method: "DELETE",
   });
+}
+
+export async function fetchTaskTemplates(): Promise<Record<string, TaskTemplate>> {
+  const data = await apiFetch<{ templates: Record<string, TaskTemplate> }>(
+    "/api/v1/task-templates",
+  );
+  return data.templates;
 }

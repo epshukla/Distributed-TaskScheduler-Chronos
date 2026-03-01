@@ -57,7 +57,13 @@ export function TaskTable() {
                 State
               </th>
               <th className="px-4 py-3 text-left text-xs font-medium text-gray-500">
+                Image
+              </th>
+              <th className="px-4 py-3 text-left text-xs font-medium text-gray-500">
                 Priority
+              </th>
+              <th className="px-4 py-3 text-left text-xs font-medium text-gray-500">
+                Exit
               </th>
               <th className="px-4 py-3 text-left text-xs font-medium text-gray-500">
                 Resources
@@ -70,14 +76,14 @@ export function TaskTable() {
           <tbody>
             {isLoading ? (
               <tr>
-                <td colSpan={6} className="p-4">
+                <td colSpan={8} className="p-4">
                   <TableSkeleton rows={5} />
                 </td>
               </tr>
             ) : data?.items.length === 0 ? (
               <tr>
                 <td
-                  colSpan={6}
+                  colSpan={8}
                   className="py-12 text-center text-sm text-gray-600"
                 >
                   No tasks found

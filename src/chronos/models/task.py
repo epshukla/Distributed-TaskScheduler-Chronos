@@ -2,7 +2,7 @@ import uuid
 from datetime import datetime
 from typing import TYPE_CHECKING, Optional
 
-from sqlalchemy import CheckConstraint, ForeignKey, Index, String, Text
+from sqlalchemy import CheckConstraint, ForeignKey, Index, Integer, String, Text
 from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -54,11 +54,22 @@ class Task(UUIDMixin, TimestampMixin, Base):
     result: Mapped[Optional[dict]] = mapped_column(JSONB, default=None)
     error: Mapped[Optional[str]] = mapped_column(Text, default=None)
 
-    # Simulated workload
-    duration_seconds: Mapped[float] = mapped_column(default=10.0)
+    # Docker container execution
+    image: Mapped[str] = mapped_column(String(512), default="alpine:latest")
+    command: Mapped[Optional[list]] = mapped_column(JSONB, default=None)
+    args: Mapped[Optional[list]] = mapped_column(JSONB, default=None)
+    env_vars: Mapped[Optional[dict]] = mapped_column(JSONB, default=None)
+    working_dir: Mapped[Optional[str]] = mapped_column(String(512), default=None)
+    timeout_seconds: Mapped[int] = mapped_column(Integer, default=300)
+
+    # Container execution results
+    exit_code: Mapped[Optional[int]] = mapped_column(Integer, default=None)
+    stdout: Mapped[Optional[str]] = mapped_column(Text, default=None)
+    stderr: Mapped[Optional[str]] = mapped_column(Text, default=None)
+    container_id: Mapped[Optional[str]] = mapped_column(String(128), default=None)
 
     # Relationships
     worker: Mapped[Optional["Worker"]] = relationship(back_populates="tasks", lazy="raise")
 
     def __repr__(self) -> str:
-        return f"<Task id={self.id} name={self.name!r} state={self.state} priority={self.priority}>"
+        return f"<Task id={self.id} name={self.name!r} state={self.state} image={self.image!r}>"

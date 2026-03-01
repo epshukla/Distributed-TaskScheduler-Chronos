@@ -13,6 +13,10 @@ export function useRealtimeData() {
         case "task_created":
         case "task_state_changed":
         case "task_scheduled":
+        case "container_started":
+        case "container_exited":
+        case "oom_killed":
+        case "timeout_killed":
           queryClient.invalidateQueries({ queryKey: ["tasks"] });
           queryClient.invalidateQueries({ queryKey: ["stats"] });
           break;

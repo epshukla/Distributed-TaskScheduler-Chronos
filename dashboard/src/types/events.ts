@@ -4,7 +4,13 @@ export type EventType =
   | "task_state_changed"
   | "worker_registered"
   | "worker_heartbeat"
-  | "worker_dead";
+  | "worker_dead"
+  | "container_started"
+  | "container_exited"
+  | "image_pull_started"
+  | "image_pull_completed"
+  | "oom_killed"
+  | "timeout_killed";
 
 export interface TaskCreatedPayload {
   task_id: string;
@@ -13,6 +19,7 @@ export interface TaskCreatedPayload {
   state: string;
   resource_cpu: number;
   resource_memory: number;
+  image?: string;
 }
 
 export interface TaskScheduledPayload {
@@ -33,6 +40,17 @@ export interface TaskStateChangedPayload {
   worker_id?: string | null;
   reason?: string;
   retry_count?: number;
+  exit_code?: number | null;
+  image?: string;
+  error?: string;
+}
+
+export interface ContainerExitedPayload {
+  task_id: string;
+  name: string;
+  image: string;
+  exit_code: number;
+  container_id: string;
 }
 
 export interface WorkerRegisteredPayload {
@@ -61,6 +79,7 @@ export type EventPayload =
   | TaskCreatedPayload
   | TaskScheduledPayload
   | TaskStateChangedPayload
+  | ContainerExitedPayload
   | WorkerRegisteredPayload
   | WorkerHeartbeatPayload
   | WorkerDeadPayload;

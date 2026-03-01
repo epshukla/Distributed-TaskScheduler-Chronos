@@ -1,5 +1,5 @@
 import { motion } from "framer-motion";
-import { Server } from "lucide-react";
+import { Server, Box } from "lucide-react";
 import { WorkerStatusBadge } from "@/components/common/StatusBadge";
 import { RelativeTime } from "@/components/common/RelativeTime";
 import { WorkerResourceGauge } from "./WorkerResourceGauge";

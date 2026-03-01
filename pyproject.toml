@@ -24,6 +24,8 @@ dependencies = [
     "httpx==0.28.1",
     "psutil==6.1.1",
     "python-dotenv==1.0.1",
+    "docker>=7.0.0",
+    "sse-starlette>=2.0.0",
 ]
 
 [project.optional-dependencies]
@@ -45,6 +47,9 @@ where = ["src"]
 asyncio_mode = "auto"
 testpaths = ["tests"]
 addopts = "-v --tb=short"
+markers = [
+    "integration: Integration tests requiring Docker daemon and external services",
+]
 
 [tool.ruff]
 line-length = 100

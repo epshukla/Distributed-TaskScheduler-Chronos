@@ -41,6 +41,14 @@ class Settings(BaseSettings):
     heartbeat_timeout_seconds: int = 15
     failure_check_interval_seconds: int = 10
 
+    # Docker container execution
+    docker_socket: str = "unix:///var/run/docker.sock"
+    default_task_timeout: int = 300
+    max_container_log_bytes: int = 10240  # 10KB
+    image_pull_timeout: int = 120
+    container_stop_timeout: int = 10
+    auto_detect_resources: bool = True  # Use psutil instead of env vars for resource detection
+
     # Logging
     log_level: str = "INFO"
     log_format: str = "json"

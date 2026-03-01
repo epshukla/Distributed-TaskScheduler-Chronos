@@ -3,6 +3,7 @@ import signal
 import sys
 
 import httpx
+import psutil
 import structlog
 
 from chronos.config.settings import get_settings
@@ -13,6 +14,7 @@ from chronos.redis_client.task_assignment import TaskAssignmentQueue
 from chronos.worker.executor import TaskExecutor
 from chronos.worker.heartbeat import HeartbeatSender
 from chronos.worker.resource_reporter import ResourceReporter
+from chronos.worker.task_runner import cleanup_orphaned_containers
 
 logger = structlog.get_logger(__name__)
 
@@ -51,11 +53,25 @@ async def main() -> None:
     settings = get_settings()
     configure_logging(settings.log_level, settings.log_format)
 
+    # Auto-detect system resources via psutil if enabled
+    if settings.auto_detect_resources:
+        cpu_total = float(psutil.cpu_count(logical=True) or settings.worker_cpu_total)
+        memory_total = round(psutil.virtual_memory().total / (1024 * 1024), 1)
+        logger.info(
+            "auto_detected_resources",
+            cpu_total=cpu_total,
+            memory_total=memory_total,
+        )
+    else:
+        cpu_total = settings.worker_cpu_total
+        memory_total = settings.worker_memory_total
+
     logger.info(
         "worker_starting",
         hostname=settings.worker_hostname,
-        cpu=settings.worker_cpu_total,
-        memory=settings.worker_memory_total,
+        cpu=cpu_total,
+        memory=memory_total,
+        auto_detect=settings.auto_detect_resources,
     )
 
     # Connect to Redis
@@ -65,13 +81,23 @@ async def main() -> None:
     worker_id = await register_with_master(
         settings.master_url,
         settings.worker_hostname,
-        settings.worker_cpu_total,
-        settings.worker_memory_total,
+        cpu_total,
+        memory_total,
     )
     logger.info("worker_registered", worker_id=worker_id, hostname=settings.worker_hostname)
 
+    # Clean up orphaned containers from previous runs
+    cleaned = cleanup_orphaned_containers(worker_id)
+    if cleaned:
+        logger.info("orphaned_containers_cleaned", count=cleaned)
+
     # Initialize components
-    resource_reporter = ResourceReporter(settings.worker_cpu_total, settings.worker_memory_total)
+    resource_reporter = ResourceReporter(
+        cpu_total=cpu_total,
+        memory_total=memory_total,
+        worker_id=worker_id,
+        auto_detect=settings.auto_detect_resources,
+    )
     heartbeat_store = HeartbeatStore(redis)
     assignment_queue = TaskAssignmentQueue(redis)
 

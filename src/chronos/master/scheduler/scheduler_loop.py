@@ -7,7 +7,7 @@ from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from chronos.config.settings import Settings
 from chronos.etcd_client.leader_election import LeaderElection
-from chronos.master.scheduler.bin_packing import ResourceRequest, WorkerCapacity, best_fit_schedule
+from chronos.master.scheduler.bin_packing import ResourceRequest, WorkerCapacity, spread_schedule
 from chronos.master.scheduler.preemption import PreemptionEngine
 from chronos.master.events import event_bus
 from chronos.metrics.collectors import SCHEDULER_TICK_DURATION, SCHEDULING_LATENCY
@@ -202,9 +202,9 @@ class SchedulerLoop:
         task: Task,
         workers: list[WorkerCapacity],
     ) -> bool:
-        """Try to schedule a task using best-fit bin-packing. Returns True on success."""
+        """Try to schedule a task using spread scheduling. Returns True on success."""
         resources = ResourceRequest(cpu=task.resource_cpu, memory=task.resource_memory)
-        selected = best_fit_schedule(resources, workers)
+        selected = spread_schedule(resources, workers)
 
         if selected is None:
             return False

@@ -16,6 +16,11 @@ x-worker-base: &worker-base
   networks:
     - chronos-net
   restart: unless-stopped
+  # SECURITY NOTE: Mounting the Docker socket gives the worker container full
+  # control over the host Docker daemon. In production, use rootless Docker,
+  # a sandboxed runtime like gVisor, or Kubernetes pod security policies.
+  volumes:
+    - /var/run/docker.sock:/var/run/docker.sock
 
 services:
   # --- Infrastructure ---
@@ -123,16 +128,17 @@ services:
   #     - chronos-net
   #   restart: unless-stopped
 
-  # --- Workers (heterogeneous resources) ---
+  # --- Workers ---
+  # Workers auto-detect real host resources via psutil.
+  # Each worker mounts the Docker socket to run task containers on the host.
   worker-1:
     <<: *worker-base
     environment:
       <<: *common-env
       CHRONOS_NODE_ID: worker-1
       CHRONOS_WORKER_HOSTNAME: worker-1
-      CHRONOS_WORKER_CPU_TOTAL: "4.0"
-      CHRONOS_WORKER_MEMORY_TOTAL: "4096.0"
       CHRONOS_MASTER_URL: http://master:8000
+      CHRONOS_AUTO_DETECT_RESOURCES: "true"
 
   worker-2:
     <<: *worker-base
@@ -140,9 +146,8 @@ services:
       <<: *common-env
       CHRONOS_NODE_ID: worker-2
       CHRONOS_WORKER_HOSTNAME: worker-2
-      CHRONOS_WORKER_CPU_TOTAL: "4.0"
-      CHRONOS_WORKER_MEMORY_TOTAL: "4096.0"
       CHRONOS_MASTER_URL: http://master:8000
+      CHRONOS_AUTO_DETECT_RESOURCES: "true"
 
   worker-3:
     <<: *worker-base
@@ -150,29 +155,8 @@ services:
       <<: *common-env
       CHRONOS_NODE_ID: worker-3
       CHRONOS_WORKER_HOSTNAME: worker-3
-      CHRONOS_WORKER_CPU_TOTAL: "2.0"
-      CHRONOS_WORKER_MEMORY_TOTAL: "2048.0"
       CHRONOS_MASTER_URL: http://master:8000
-
-  worker-4:
-    <<: *worker-base
-    environment:
-      <<: *common-env
-      CHRONOS_NODE_ID: worker-4
-      CHRONOS_WORKER_HOSTNAME: worker-4
-      CHRONOS_WORKER_CPU_TOTAL: "2.0"
-      CHRONOS_WORKER_MEMORY_TOTAL: "2048.0"
-      CHRONOS_MASTER_URL: http://master:8000
-
-  worker-5:
-    <<: *worker-base
-    environment:
-      <<: *common-env
-      CHRONOS_NODE_ID: worker-5
-      CHRONOS_WORKER_HOSTNAME: worker-5
-      CHRONOS_WORKER_CPU_TOTAL: "8.0"
-      CHRONOS_WORKER_MEMORY_TOTAL: "8192.0"
-      CHRONOS_MASTER_URL: http://master:8000
+      CHRONOS_AUTO_DETECT_RESOURCES: "true"
 
 volumes:
   postgres_data:

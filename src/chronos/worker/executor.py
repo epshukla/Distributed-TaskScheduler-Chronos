@@ -12,7 +12,7 @@ logger = structlog.get_logger(__name__)
 
 
 class TaskExecutor:
-    """Polls Redis for task assignments and executes them."""
+    """Polls Redis for task assignments and executes them as Docker containers."""
 
     def __init__(
         self,
@@ -50,9 +50,10 @@ class TaskExecutor:
             await self._http_client.aclose()
 
     async def _execute_task(self, task_id: str) -> None:
-        """Fetch task details, run it, report result."""
+        """Fetch task details, run it as a Docker container, report result."""
         cancel_event = asyncio.Event()
         self._running_tasks[task_id] = cancel_event
+        task_data: dict | None = None
 
         try:
             # Fetch task details from master
@@ -71,14 +72,19 @@ class TaskExecutor:
             # Report RUNNING state
             await self._report_state(task_id, "RUNNING")
 
-            # Execute
+            # Execute Docker container
             import time
             start = time.perf_counter()
-            result = await run_task(task_id, task_data, cancel_event)
+            result = await run_task(
+                task_id=task_id,
+                task_data=task_data,
+                cancel_event=cancel_event,
+                worker_id=self._worker_id,
+            )
             duration = time.perf_counter() - start
             TASK_EXECUTION_DURATION.observe(duration)
 
-            # Report COMPLETED
+            # Report COMPLETED with container execution results
             await self._report_completion(task_id, result)
 
         except TaskPreemptedError:
@@ -87,6 +93,7 @@ class TaskExecutor:
 
         except TaskExecutionError as e:
             logger.error("task_failed", task_id=task_id, error=str(e))
+            # Extract container results from the error context if available
             await self._report_failure(task_id, str(e))
 
         except Exception as e:
@@ -96,8 +103,12 @@ class TaskExecutor:
         finally:
             self._running_tasks.pop(task_id, None)
             await self._assignments.remove_active_task(self._worker_id, task_id)
-            cpu = task_data.get("resource_cpu", 1.0) if "task_data" in dir() else 1.0
-            memory = task_data.get("resource_memory", 256.0) if "task_data" in dir() else 256.0
+            if task_data:
+                cpu = task_data.get("resource_cpu", 1.0)
+                memory = task_data.get("resource_memory", 256.0)
+            else:
+                cpu = 1.0
+                memory = 256.0
             await self._reporter.release(cpu, memory)
 
     async def _preemption_listener(self) -> None:
@@ -137,7 +148,13 @@ class TaskExecutor:
         try:
             await self._http_client.post(
                 f"/internal/tasks/{task_id}/complete",
-                json={"result": result},
+                json={
+                    "result": result,
+                    "exit_code": result.get("exit_code"),
+                    "stdout": result.get("stdout", ""),
+                    "stderr": result.get("stderr", ""),
+                    "container_id": result.get("container_id", ""),
+                },
             )
         except Exception as e:
             logger.error("report_completion_error", task_id=task_id, error=str(e))
