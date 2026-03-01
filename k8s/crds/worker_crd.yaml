@@ -1,0 +1,91 @@
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  name: workers.chronos.io
+spec:
+  group: chronos.io
+  versions:
+    - name: v1alpha1
+      served: true
+      storage: true
+      schema:
+        openAPIV3Schema:
+          type: object
+          properties:
+            spec:
+              type: object
+              required: ["hostname"]
+              properties:
+                hostname:
+                  type: string
+                resources:
+                  type: object
+                  properties:
+                    cpuTotal:
+                      type: number
+                      default: 4.0
+                    memoryTotal:
+                      type: number
+                      default: 4096
+                labels:
+                  type: object
+                  additionalProperties:
+                    type: string
+            status:
+              type: object
+              properties:
+                phase:
+                  type: string
+                  enum: ["Active", "Draining", "Dead", "Deregistered"]
+                backendWorkerId:
+                  type: string
+                cpuAvailable:
+                  type: number
+                memoryAvailable:
+                  type: number
+                lastHeartbeat:
+                  type: string
+                  format: date-time
+                activeTasks:
+                  type: integer
+                conditions:
+                  type: array
+                  items:
+                    type: object
+                    properties:
+                      type:
+                        type: string
+                      status:
+                        type: string
+                      lastTransitionTime:
+                        type: string
+                        format: date-time
+                      reason:
+                        type: string
+                      message:
+                        type: string
+      subresources:
+        status: {}
+      additionalPrinterColumns:
+        - name: Phase
+          type: string
+          jsonPath: .status.phase
+        - name: CPU
+          type: string
+          jsonPath: .status.cpuAvailable
+        - name: Memory
+          type: string
+          jsonPath: .status.memoryAvailable
+        - name: Tasks
+          type: integer
+          jsonPath: .status.activeTasks
+        - name: Age
+          type: date
+          jsonPath: .metadata.creationTimestamp
+  scope: Namespaced
+  names:
+    plural: workers
+    singular: worker
+    kind: Worker
+    shortNames:
+      - wkr

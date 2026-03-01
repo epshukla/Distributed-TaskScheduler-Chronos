@@ -1,0 +1,14 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "chronos.fullname" . }}-config
+  labels:
+    {{- include "chronos.labels" . | nindent 4 }}
+data:
+  CHRONOS_LOG_LEVEL: {{ .Values.logging.level | quote }}
+  CHRONOS_LOG_FORMAT: {{ .Values.logging.format | quote }}
+  CHRONOS_SCHEDULER_INTERVAL_SECONDS: "1.0"
+  CHRONOS_HEARTBEAT_INTERVAL_SECONDS: "5"
+  CHRONOS_HEARTBEAT_TIMEOUT_SECONDS: "15"
+  CHRONOS_WORKER_CPU_TOTAL: {{ .Values.worker.cpuTotal | quote }}
+  CHRONOS_WORKER_MEMORY_TOTAL: {{ .Values.worker.memoryTotal | quote }}

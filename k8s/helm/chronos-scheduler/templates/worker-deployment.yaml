@@ -1,0 +1,41 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "chronos.fullname" . }}-worker
+  labels:
+    {{- include "chronos.labels" . | nindent 4 }}
+    app.kubernetes.io/component: worker
+spec:
+  replicas: {{ .Values.replicaCount.worker }}
+  selector:
+    matchLabels:
+      {{- include "chronos.selectorLabels" . | nindent 6 }}
+      app.kubernetes.io/component: worker
+  template:
+    metadata:
+      labels:
+        {{- include "chronos.selectorLabels" . | nindent 8 }}
+        app.kubernetes.io/component: worker
+    spec:
+      containers:
+        - name: worker
+          image: "{{ .Values.image.worker.repository }}:{{ .Values.image.worker.tag }}"
+          imagePullPolicy: {{ .Values.image.worker.pullPolicy }}
+          envFrom:
+            - configMapRef:
+                name: {{ include "chronos.fullname" . }}-config
+            - secretRef:
+                name: {{ include "chronos.fullname" . }}-secret
+          env:
+            - name: CHRONOS_NODE_ID
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.name
+            - name: CHRONOS_WORKER_HOSTNAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.name
+            - name: CHRONOS_MASTER_URL
+              value: "http://{{ include "chronos.fullname" . }}-master:{{ .Values.service.master.port }}"
+          resources:
+            {{- toYaml .Values.resources.worker | nindent 12 }}

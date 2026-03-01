@@ -1,0 +1,185 @@
+x-common-env: &common-env
+  CHRONOS_POSTGRES_URL: postgresql+asyncpg://chronos:chronos@postgres:5432/chronos
+  CHRONOS_REDIS_URL: redis://redis:6379/0
+  CHRONOS_ETCD_HOST: etcd
+  CHRONOS_ETCD_PORT: "2379"
+  CHRONOS_LOG_LEVEL: INFO
+  CHRONOS_LOG_FORMAT: json
+
+x-worker-base: &worker-base
+  build:
+    context: .
+    dockerfile: Dockerfile.worker
+  depends_on:
+    master:
+      condition: service_healthy
+  networks:
+    - chronos-net
+  restart: unless-stopped
+
+services:
+  # --- Infrastructure ---
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: chronos
+      POSTGRES_PASSWORD: chronos
+      POSTGRES_DB: chronos
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U chronos"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    networks:
+      - chronos-net
+
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    command: redis-server --appendonly yes --maxmemory 256mb --maxmemory-policy allkeys-lru
+    networks:
+      - chronos-net
+
+  etcd:
+    image: gcr.io/etcd-development/etcd:v3.5.17
+    command:
+      - etcd
+      - --name=chronos-etcd
+      - --data-dir=/etcd-data
+      - --advertise-client-urls=http://etcd:2379
+      - --listen-client-urls=http://0.0.0.0:2379
+      - --listen-peer-urls=http://0.0.0.0:2380
+      - --initial-advertise-peer-urls=http://etcd:2380
+      - --initial-cluster=chronos-etcd=http://etcd:2380
+    ports:
+      - "2379:2379"
+    volumes:
+      - etcd_data:/etcd-data
+    healthcheck:
+      test: ["CMD", "etcdctl", "endpoint", "health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - chronos-net
+
+  # --- Master ---
+  master:
+    build:
+      context: .
+      dockerfile: Dockerfile.master
+    environment:
+      <<: *common-env
+      CHRONOS_NODE_ID: master-1
+      CHRONOS_MASTER_HOST: "0.0.0.0"
+      CHRONOS_MASTER_PORT: "8000"
+    ports:
+      - "8000:8000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      etcd:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 15s
+    networks:
+      - chronos-net
+    restart: unless-stopped
+
+  # --- Dashboard (run locally: cd dashboard && npm run dev) ---
+  # dashboard:
+  #   image: node:20-alpine
+  #   working_dir: /app
+  #   environment:
+  #     VITE_API_TARGET: http://master:8000
+  #   command: sh -c "npm install && npx vite --host 0.0.0.0"
+  #   ports:
+  #     - "5173:5173"
+  #   volumes:
+  #     - ./dashboard:/app
+  #     - dashboard_node_modules:/app/node_modules
+  #   depends_on:
+  #     master:
+  #       condition: service_healthy
+  #   networks:
+  #     - chronos-net
+  #   restart: unless-stopped
+
+  # --- Workers (heterogeneous resources) ---
+  worker-1:
+    <<: *worker-base
+    environment:
+      <<: *common-env
+      CHRONOS_NODE_ID: worker-1
+      CHRONOS_WORKER_HOSTNAME: worker-1
+      CHRONOS_WORKER_CPU_TOTAL: "4.0"
+      CHRONOS_WORKER_MEMORY_TOTAL: "4096.0"
+      CHRONOS_MASTER_URL: http://master:8000
+
+  worker-2:
+    <<: *worker-base
+    environment:
+      <<: *common-env
+      CHRONOS_NODE_ID: worker-2
+      CHRONOS_WORKER_HOSTNAME: worker-2
+      CHRONOS_WORKER_CPU_TOTAL: "4.0"
+      CHRONOS_WORKER_MEMORY_TOTAL: "4096.0"
+      CHRONOS_MASTER_URL: http://master:8000
+
+  worker-3:
+    <<: *worker-base
+    environment:
+      <<: *common-env
+      CHRONOS_NODE_ID: worker-3
+      CHRONOS_WORKER_HOSTNAME: worker-3
+      CHRONOS_WORKER_CPU_TOTAL: "2.0"
+      CHRONOS_WORKER_MEMORY_TOTAL: "2048.0"
+      CHRONOS_MASTER_URL: http://master:8000
+
+  worker-4:
+    <<: *worker-base
+    environment:
+      <<: *common-env
+      CHRONOS_NODE_ID: worker-4
+      CHRONOS_WORKER_HOSTNAME: worker-4
+      CHRONOS_WORKER_CPU_TOTAL: "2.0"
+      CHRONOS_WORKER_MEMORY_TOTAL: "2048.0"
+      CHRONOS_MASTER_URL: http://master:8000
+
+  worker-5:
+    <<: *worker-base
+    environment:
+      <<: *common-env
+      CHRONOS_NODE_ID: worker-5
+      CHRONOS_WORKER_HOSTNAME: worker-5
+      CHRONOS_WORKER_CPU_TOTAL: "8.0"
+      CHRONOS_WORKER_MEMORY_TOTAL: "8192.0"
+      CHRONOS_MASTER_URL: http://master:8000
+
+volumes:
+  postgres_data:
+  redis_data:
+  etcd_data:
+  dashboard_node_modules:
+
+networks:
+  chronos-net:
+    driver: bridge

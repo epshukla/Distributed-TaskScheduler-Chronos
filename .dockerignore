@@ -1,0 +1,15 @@
+.git
+__pycache__
+*.py[cod]
+.env
+.venv
+venv
+tests
+docs
+*.md
+.pytest_cache
+.mypy_cache
+.ruff_cache
+htmlcov
+.coverage
+k8s

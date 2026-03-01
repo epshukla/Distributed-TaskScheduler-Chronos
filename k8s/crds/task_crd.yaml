@@ -1,0 +1,112 @@
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  name: tasks.chronos.io
+spec:
+  group: chronos.io
+  versions:
+    - name: v1alpha1
+      served: true
+      storage: true
+      schema:
+        openAPIV3Schema:
+          type: object
+          properties:
+            spec:
+              type: object
+              required: ["name"]
+              properties:
+                name:
+                  type: string
+                  description: "Human-readable task name"
+                description:
+                  type: string
+                priority:
+                  type: integer
+                  minimum: 0
+                  maximum: 100
+                  default: 0
+                resources:
+                  type: object
+                  properties:
+                    cpu:
+                      type: number
+                      minimum: 0.1
+                      default: 1.0
+                    memory:
+                      type: number
+                      minimum: 64
+                      default: 256
+                retryPolicy:
+                  type: object
+                  properties:
+                    maxRetries:
+                      type: integer
+                      minimum: 0
+                      maximum: 10
+                      default: 3
+                durationSeconds:
+                  type: number
+                  minimum: 1
+                  default: 10
+            status:
+              type: object
+              properties:
+                state:
+                  type: string
+                  enum: ["Pending", "Scheduled", "Running", "Completed", "Failed", "Preempted", "Cancelled"]
+                backendTaskId:
+                  type: string
+                assignedWorker:
+                  type: string
+                retryCount:
+                  type: integer
+                startedAt:
+                  type: string
+                  format: date-time
+                completedAt:
+                  type: string
+                  format: date-time
+                result:
+                  type: object
+                  x-kubernetes-preserve-unknown-fields: true
+                error:
+                  type: string
+                conditions:
+                  type: array
+                  items:
+                    type: object
+                    properties:
+                      type:
+                        type: string
+                      status:
+                        type: string
+                      lastTransitionTime:
+                        type: string
+                        format: date-time
+                      reason:
+                        type: string
+                      message:
+                        type: string
+      subresources:
+        status: {}
+      additionalPrinterColumns:
+        - name: State
+          type: string
+          jsonPath: .status.state
+        - name: Priority
+          type: integer
+          jsonPath: .spec.priority
+        - name: Worker
+          type: string
+          jsonPath: .status.assignedWorker
+        - name: Age
+          type: date
+          jsonPath: .metadata.creationTimestamp
+  scope: Namespaced
+  names:
+    plural: tasks
+    singular: task
+    kind: Task
+    shortNames:
+      - tsk

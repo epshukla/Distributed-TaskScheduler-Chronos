@@ -1,0 +1,55 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "chronos.fullname" . }}-master
+  labels:
+    {{- include "chronos.labels" . | nindent 4 }}
+    app.kubernetes.io/component: master
+spec:
+  replicas: {{ .Values.replicaCount.master }}
+  selector:
+    matchLabels:
+      {{- include "chronos.selectorLabels" . | nindent 6 }}
+      app.kubernetes.io/component: master
+  template:
+    metadata:
+      labels:
+        {{- include "chronos.selectorLabels" . | nindent 8 }}
+        app.kubernetes.io/component: master
+    spec:
+      containers:
+        - name: master
+          image: "{{ .Values.image.master.repository }}:{{ .Values.image.master.tag }}"
+          imagePullPolicy: {{ .Values.image.master.pullPolicy }}
+          ports:
+            - name: http
+              containerPort: 8000
+              protocol: TCP
+          envFrom:
+            - configMapRef:
+                name: {{ include "chronos.fullname" . }}-config
+            - secretRef:
+                name: {{ include "chronos.fullname" . }}-secret
+          env:
+            - name: CHRONOS_NODE_ID
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.name
+            - name: CHRONOS_ETCD_HOST
+              value: {{ include "chronos.fullname" . }}-etcd
+            - name: CHRONOS_ETCD_PORT
+              value: "2379"
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: http
+            initialDelaySeconds: 15
+            periodSeconds: 10
+          readinessProbe:
+            httpGet:
+              path: /ready
+              port: http
+            initialDelaySeconds: 10
+            periodSeconds: 5
+          resources:
+            {{- toYaml .Values.resources.master | nindent 12 }}

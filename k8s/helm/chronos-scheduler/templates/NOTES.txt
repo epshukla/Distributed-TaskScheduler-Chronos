@@ -1,0 +1,19 @@
+Chronos-K8s-Scheduler has been deployed!
+
+1. Get the master API URL:
+   kubectl port-forward svc/{{ include "chronos.fullname" . }}-master {{ .Values.service.master.port }}:{{ .Values.service.master.port }}
+
+2. Submit a task:
+   curl -X POST http://localhost:{{ .Values.service.master.port }}/api/v1/tasks/ \
+     -H "Content-Type: application/json" \
+     -d '{"name": "hello-world", "priority": 50, "resource_cpu": 1.0, "resource_memory": 256}'
+
+3. Check health:
+   curl http://localhost:{{ .Values.service.master.port }}/health
+
+4. View metrics:
+   curl http://localhost:{{ .Values.service.master.port }}/metrics
+
+5. View logs:
+   kubectl logs -l app.kubernetes.io/component=master -f
+   kubectl logs -l app.kubernetes.io/component=worker -f

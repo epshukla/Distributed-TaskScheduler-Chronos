@@ -1,0 +1,14 @@
+apiVersion: v2
+name: chronos-scheduler
+description: A distributed task scheduler inspired by Kubernetes Control Plane + Google Borg
+version: 0.1.0
+appVersion: "0.1.0"
+type: application
+keywords:
+  - scheduler
+  - distributed-systems
+  - task-queue
+  - bin-packing
+  - preemption
+maintainers:
+  - name: Chronos Team

@@ -1,0 +1,74 @@
+replicaCount:
+  master: 2  # HA via leader election
+  worker: 5
+
+image:
+  master:
+    repository: chronos-scheduler/master
+    tag: "0.1.0"
+    pullPolicy: IfNotPresent
+  worker:
+    repository: chronos-scheduler/worker
+    tag: "0.1.0"
+    pullPolicy: IfNotPresent
+
+resources:
+  master:
+    requests:
+      cpu: "500m"
+      memory: "512Mi"
+    limits:
+      cpu: "1000m"
+      memory: "1Gi"
+  worker:
+    requests:
+      cpu: "250m"
+      memory: "256Mi"
+    limits:
+      cpu: "2000m"
+      memory: "4Gi"
+
+worker:
+  cpuTotal: "4.0"
+  memoryTotal: "4096.0"
+  autoscaling:
+    enabled: true
+    minReplicas: 3
+    maxReplicas: 20
+    targetCPUUtilization: 70
+
+postgres:
+  enabled: true
+  host: ""
+  port: 5432
+  database: chronos
+  username: chronos
+  password: chronos
+  storage: 10Gi
+
+redis:
+  enabled: true
+  host: ""
+  port: 6379
+  storage: 2Gi
+
+etcd:
+  enabled: true
+  host: ""
+  port: 2379
+  storage: 2Gi
+
+service:
+  master:
+    type: ClusterIP
+    port: 8000
+
+monitoring:
+  enabled: true
+  serviceMonitor:
+    enabled: true
+    interval: 15s
+
+logging:
+  level: INFO
+  format: json

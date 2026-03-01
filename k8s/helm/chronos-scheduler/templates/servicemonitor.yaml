@@ -1,0 +1,17 @@
+{{- if and .Values.monitoring.enabled .Values.monitoring.serviceMonitor.enabled }}
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: {{ include "chronos.fullname" . }}
+  labels:
+    {{- include "chronos.labels" . | nindent 4 }}
+spec:
+  selector:
+    matchLabels:
+      {{- include "chronos.selectorLabels" . | nindent 6 }}
+      app.kubernetes.io/component: master
+  endpoints:
+    - port: http
+      path: /metrics
+      interval: {{ .Values.monitoring.serviceMonitor.interval }}
+{{- end }}
